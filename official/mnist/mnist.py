@@ -7,7 +7,7 @@ from __future__ import print_function
 from absl import app as absl_app
 from absl import flags
 from six.moves import range
-import tensorflow as tf # pylint: disable=g-bad-import-order
+import tensorflow as tf  # pylint: disable=g-bad-import-order
 
 from official.mnist import dataset
 from official.utils.flags import core as flags_core
@@ -162,3 +162,9 @@ def run_mnist(flags_obj):
         inter_op_parallelism_threads=flags_obj.inter_op_parallelism_threads,
         intra_op_parallelism_threads=flags_obj.intra_op_parallelism_threads,
         allow_soft_placement=True)
+
+    distribution_strategy = distribution_utils.get_distribution_strategy(
+        distribution_strategy=flags_obj.distribution_strategy,
+        num_gpus=flags_core.get_num_gpus(flags_obj),
+        all_reduce_alg=flags_obj.all_reduce_alg
+    )
