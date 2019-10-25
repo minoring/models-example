@@ -13,14 +13,18 @@ from __future__ import print_function
 from absl import app
 from absl import flags
 from dataset import load_and_process_img
+from dataset import deprocess_img
 from model import NUM_CONTENT_LAYERS
 from model import NUM_STYLE_LAYERS
+from model import NORM_MEANS
 from model import neural_style
-from model import compute_style_loss
-from model import compute_content_loss
+from model import compute_losses
+from utils import define_flags
+from utils import log_training_info
 
 import tensorflow as tf
 import os
+import time
 
 # Define global constants
 RESOURCES_PATH = os.path.join(os.path.dirname(__file__), 'resources')
@@ -35,17 +39,49 @@ def run(flags_obj):
     Args:
       flags_obj: An object containing parsed flag values.
 
-    Raises:
-     ValueError: If fp16 is passed as it is not currently supported.
-
     Returns:
       Dictionary of training and eval stats.
     """
-    pass
-    #  model = neural_style()
-    # org_style_reprs, org_content_reprs = (
-    #     _compute_original_image_feature_representation(model, CONTENT_PATH,
-    #                                                    STYLE_PATH))
+    model = neural_style()
+    org_style_reprs, org_content_reprs = (
+        _compute_original_image_feature_representation(model, CONTENT_PATH,
+                                                       STYLE_PATH))
+    for layer in model.layers:
+        layer.trainable = False
+
+    # Get image we are generating. Content image for now.
+    gen_img = load_and_process_img(CONTENT_PATH)
+    gen_img = tf.convert_to_tensor(gen_img) #TODO Why tensor? tape?
+    # Create optimizer. TODO: flag
+    opt = tf.optimizers.Adam(learning_rate=5, beta_1=0.99, epsilon=1e-1)
+
+    # Store best result.
+    best_loss, best_img = float('inf'), None
+
+    tic = time.time()
+
+    for step in range(flags_obj.num_training_steps):
+        with tf.GradientTape() as tape:
+            tape.watch(gen_img)
+            losses = compute_losses(model, gen_img, org_style_reprs,
+                                    org_content_reprs)
+        total_loss = losses['total_loss']
+        grads = tape.gradient(total_loss, gen_img)
+
+        opt.apply_gradients(zip(grads, gen_img))
+        toc = time.time()
+
+        # Clip by [-NORM_MEANS, 244 - NORM_MEANS] range.
+        cliped_img = tf.clip_by_value(gen_img, -NORM_MEANS, 255 - NORM_MEANS)
+        gen_img.assign(cliped_img)
+
+        plot_img = gen_img.numpy()
+        plot_img = deprocess_img(plot_img)
+        if total_loss < best_loss:
+            best_loss = total_loss
+            best_img = plot_img
+        
+        log_training_info(plot_img, losses, step, tic - toc)
 
 
 def _compute_original_image_feature_representation(model, content_path,
@@ -84,12 +120,10 @@ def _compute_original_image_feature_representation(model, content_path,
     return style_reprs, content_reprs
 
 
-def main():
-    # model_helpers.apply_clean(flags.FLAGS)
-    # with logger.benchmark_context(flags.FLAGS):
-    #     stats = run(flags.FLAGS)
-    # logging.info('Run stats:\n%s', stats)
-    pass
+def main(_):
+    """Main function to run neural style"""
+    define_flags()
+    run(flags.FLAGS)
 
 
 if __name__ == '__main__':

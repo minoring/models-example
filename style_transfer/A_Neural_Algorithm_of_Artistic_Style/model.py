@@ -4,7 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
+import numpy as np
 
 # Content layer where will pull our feature maps
 CONTENT_LAYERS = ['block5_conv2']
@@ -20,6 +20,7 @@ CONTENT_WEIGHT = 1e3  # TODO(): Flag로.
 STYLE_WEIGHT = 1e-2
 WEIGHT_PER_STYLE_LAYER = 1.0 / float(NUM_STYLE_LAYERS)
 WEIGHT_PER_CONTENT_LAYER = 1.0 / float(NUM_CONTENT_LAYERS)
+NORM_MEANS = np.array([103.939, 116.779, 123.68])  # VGG19 normalization mean.
 
 
 def neural_style():
@@ -45,7 +46,7 @@ def neural_style():
     return tf.keras.models.Model(vgg.input, model_outputs)
 
 
-def compute_loss(model, gen_image, org_style_reprs, org_content_reprs):
+def compute_losses(model, gen_image, org_style_reprs, org_content_reprs):
     """This function will compute the total loss.
 
     Args:
@@ -58,7 +59,7 @@ def compute_loss(model, gen_image, org_style_reprs, org_content_reprs):
           of interest.
     
     Returns:
-      Tuple of total loss, style loss, content loss
+      Dictionary of {'total_loss', 'style_loss', 'content_loss'}
     """
     # Feed our generating image through our model. This will give us the content
     # and style representations at our desired layers. Since we're using
@@ -87,7 +88,9 @@ def compute_loss(model, gen_image, org_style_reprs, org_content_reprs):
 
     # Get total loss
     total_loss = STYLE_WEIGHT * style_loss + CONTENT_WEIGHT * content_loss
-    return total_loss, style_loss, content_loss
+    return dict(total_loss=total_loss,
+                style_loss=style_loss,
+                content_loss=content_loss)
 
 
 def compute_content_loss(org_content_repr, gen_content_repr):
@@ -145,4 +148,3 @@ def _gram_matrix(input_tensor):
     filter_dims = tf.shape(a)[0]
     gram = tf.matmul(a, a, transpose_a=True)
     return gram / tf.cast(filter_dims, tf.float32)
-    

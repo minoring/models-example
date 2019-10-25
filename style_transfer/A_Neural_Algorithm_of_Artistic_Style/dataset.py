@@ -1,10 +1,13 @@
 """Prepare dataset to run neural style"""
 import os
 
+import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
 from tensorflow.keras.preprocessing import image
+from utils import imshow
+
 from PIL import Image
 
 IMG_MAX_SIZE = 512
@@ -19,7 +22,7 @@ def load_and_process_img(path_to_img):
         Image of VGG19 preprocessed 
     """
     img = _load_img(path_to_img)
-    img = tf.keras.applications.vgg19.process_input(img)
+    img = tf.keras.applications.vgg19.preprocess_input(img)
     return img
 
 
@@ -73,21 +76,6 @@ def _load_img(path_to_img):
     # We need to broadcast the image array such that it has a batch dimension.
     img = np.expand_dims(img, axis=0)
     return img
-
-
-def imshow(img, title=None):
-    """Show image.
-
-    Args:
-      img: numpy array of image of (batch_size, width or height, width or height)
-    """
-    # Remove the batch dimension.
-    out = np.squeeze(img, axis=0)
-    # Normalize for display.
-    out = out.astype('uint8')
-    if title is not None:
-        plt.title(title)
-    plt.imshow(out)
 
 
 if __name__ == '__main__':
