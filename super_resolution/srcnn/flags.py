@@ -4,7 +4,8 @@ from absl import flags
 
 
 def define_flags():
-  flags.DEFINE_integer("epoch", 15000, "Number of epoch [15000]")
+  flags.DEFINE_integer("train_epochs", 15000,
+                       "Number of training epoch [15000]")
   flags.DEFINE_integer("batch_size", 128, "The size of batch images [128]")
   flags.DEFINE_integer("image_size", 33, "The size of image to use [33]")
   flags.DEFINE_integer("label_size", 21, "The size of label to produce [21]")

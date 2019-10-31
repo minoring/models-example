@@ -1,4 +1,7 @@
-"""Utils for srcnn implementation"""
+"""Utils for srcnn implementation
+
+We only consider gray scale for now.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -10,12 +13,19 @@ import random
 import matplotlib.pyplot as plt
 
 from PIL import Image
+from absl import app
 from absl import flags
 import scipy.misc
+import imageio
 import scipy.ndimage
 import numpy as np
 import tensorflow as tf
-import imageio
+
+from srcnn.flags import define_flags
+
+# Global constants
+RESOURCES_PATH = os.path.join(os.getcwd(), 'resources')
+SUB_IMAGES_PATH = os.path.join(RESOURCES_PATH, 'sub_image.h5')
 
 
 def create_sub_images():
@@ -26,42 +36,48 @@ def create_sub_images():
   sub_inputs = []
   sub_labels = []
 
+  # Calculate paddings.  |33 - 21|/2 = 6 when setting was default.
+  padding = abs(flags.FLAGS.image_size - flags.FLAGS.label_size) // 2
   scale = flags.FLAGS.scale
+  image_size = flags.FLAGS.image_size
+  label_size = flags.FLAGS.label_size
+  stride = flags.FLAGS.stride
 
-  if flags.FLAGS.is_train:
-    for i in range(len(dataset_paths)):
-      # Prepare image one by one.
-      img = imread(dataset_paths[i])
-      input_img, label = create_input_label(img, scale=scale)
+  for dataset_path in dataset_paths:
+    # Prepare image one by one.
+    img = imread(dataset_path)
+    input_img, label = create_input_label(img, scale=scale)
+    h, w = input_img.shape
 
-      if len(input_img.shape) == 3:
-        h, w, _ = input_img.shape
-      else:
-        h, w = input_img.shape
+    for y in range(0, h - image_size + 1, stride):
+      for x in range(0, w - image_size + 1, stride):
+        sub_input = input_img[y:y + image_size, x:x + image_size]  # [33 x 33]
+        sub_label = label[y + padding:y + padding + label_size, x + padding:x +
+                          padding + label_size]
 
-      # Calculate paddings.  |33 - 21|/2 = 6 when setting was default.
-      padding = abs(flags.FLAGS.image_size - flags.FLAGS.label_size) // 2
-      image_size = flags.FLAGS.image_size
-      label_size = flags.FLAGS.label_size
-      stride = flags.FLAGS.stride
-      for x in range(0, h - image_size + 1, stride):
-        for y in range(0, w - image_size + 1, stride): #TODO: 이거 뭐하는건지 이해하기
-          sub_input = input_img[x:x + image_size, y:y + image_size]  # [33 x 33]
-          sub_label = label[x + padding:x + padding + label_size, y +
-                            padding:y + padding + label_size]
+        # Make channel.
+        sub_input = sub_input.reshape([image_size, image_size, 1])
+        sub_label = sub_label.reshape([label_size, label_size, 1])
 
-          # Make sure image has one color channel.
-          # Create if it does not exists.    
-          sub_input = sub_input.reshape([image_size, image_size, 1])
-          sub_label = sub_label.reshape([label_size, label_size, 1])
+        sub_inputs.append(sub_input)
+        sub_labels.append(sub_label)
 
-          sub_inputs.append(sub_input)
-          sub_labels.append(sub_label)
-        
+  save_as_h5_file(sub_inputs, sub_labels)
 
-  else:
 
-    pass
+def sub_images_exists():
+  """Return False for now."""
+  return False 
+
+
+def save_as_h5_file(sub_inputs, sub_labels):
+  """Save sub images as h5 file format."""
+  if not os.path.exists(RESOURCES_PATH):
+    os.mkdir(RESOURCES_PATH)
+
+  with h5py.File(SUB_IMAGES_PATH, 'w') as hf:
+    hf.create_dataset('input_img', data=sub_inputs)
+    hf.create_dataset('label', data=sub_labels)
 
 
 def find_dataset_paths(is_train):
@@ -76,10 +92,11 @@ def find_dataset_paths(is_train):
   """
   if is_train:
     # Find list in 'Train' directory
-    data_dir = os.path.join(os.getcwd(), 'Train')
-    dataset_paths = glob.glob(os.path.join(data_dir, '*.bmp'))
+    data_dir = os.path.join(os.getcwd(), 'resources/train')
+    dataset_paths = glob.glob(os.path.join(data_dir, 't1.bmp')) #TODO *.bmp for production
   else:
-    data_dir = os.path.join(os.getcwd(), (os.path.join(os.getcwd(), 'Test')),
+    data_dir = os.path.join(os.getcwd(),
+                            (os.path.join(os.getcwd(), 'resources/test')),
                             'Set5')
     dataset_paths = glob.glob(os.path.join(data_dir, '*.bmp'))
 
@@ -87,7 +104,7 @@ def find_dataset_paths(is_train):
 
 
 def create_input_label(img, scale=3):
-  """Create preprocessed input and label using give image.
+  """Create preprocessed input and label of given image.
   
   Preprocessing follows steps below,
   (1) Normalize to have 0-1 range
@@ -100,10 +117,9 @@ def create_input_label(img, scale=3):
   Returns:
     A tuple of (input_img, label)
   """
-  label = modcrop(img, scale)
+  label = _modcrop(img, scale)
 
   # Normalize.
-  img = img / 255.
   label = label / 255.
 
   input_img = scipy.ndimage.interpolation.zoom(label, (1. / scale),
@@ -113,26 +129,21 @@ def create_input_label(img, scale=3):
   return input_img, label
 
 
-def modcrop(img, scale=3):
+def _modcrop(img, scale=3):
   """To scale down and up the original image, crop remainder part of image 
 
   Args:
     img: Image we want to crop
-    scale: Desired upscale of downscale size. 
+    scale: Upscale or downscale size. 
 
   Returns:
     Image that croped remainders.
   """
-  if len(img.shape) == 3:
-    h, w, _ = img.shape
-  else:
-    h, w = img.shape
-
+  h, w = img.shape
   new_h = h - np.mod(h, scale)
   new_w = w - np.mod(w, scale)
 
-  return img[0:new_h, 0:new_w, :] if len(
-      img.shape == 3) else img[0:new_h, 0:new_w]
+  return img[0:new_h, 0:new_w]
 
 
 def imread(path, as_gray=True):
@@ -148,7 +159,11 @@ def imread(path, as_gray=True):
   Returns:
     Numpy array of image
   """
-  return imageio.imread(path, as_gray=True, pilmode='YCbCr').astype(np.float)
+  img = imageio.imread(path, as_gray=as_gray, pilmode='YCbCr').astype(np.float)
+  if len(img.shape) == 3:
+    # Make sure image shape (h, w)
+    img = img[:, :, 0]
+  return img
 
 
 def read_data_h5(file_path):
@@ -158,9 +173,21 @@ def read_data_h5(file_path):
     file_path: file path containing data.
   
   Returns:
-    A tuple of Numpy array containing (data, label).
+    A tuple of Numpy array containing (input_img, label).
   """
   with h5py.File(file_path, 'r') as hf:
-    data = np.array(hf.get('data'))
-    label = np.array(hf.get('label'))
-  return data, label
+    input_imgs = np.array(hf.get('input_img'))
+    labels = np.array(hf.get('label'))
+  return input_imgs, labels
+
+
+def main(_):
+  define_flags()
+  create_sub_images()
+  input_img, label = read_data_h5(SUB_IMAGES_PATH)
+  print("Shape of input image shape", input_img.shape)
+  print("Shape of label image shape", label.shape)
+
+
+if __name__ == '__main__':
+  app.run(main)
