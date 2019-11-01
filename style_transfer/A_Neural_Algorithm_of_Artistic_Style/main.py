@@ -22,11 +22,12 @@ from model import compute_losses
 from flags import define_flags
 from utils import log_training_info
 from utils import plot_history
+from utils import create_gif
 
 import tensorflow as tf
 import os
 import time
-
+import matplotlib.pyplot as plt
 # Define global constants
 RESOURCES_PATH = os.path.join(os.path.dirname(__file__), 'resources')
 CONTENT_PATH = os.path.join(RESOURCES_PATH,
@@ -88,11 +89,16 @@ def run(flags_obj):
       best_img = plot_img
 
     if step % flags_obj.display_interval == 0:
-      log_training_info(plot_img, losses, step,
-                        time.time() - start_time)
+      plt.imshow(plot_img)
+      plt.axis('off')
+      plt.savefig('image_at_step_{:04d}.jpg'.format(step))
+      # log_training_info(plot_img, losses, step,
+      #                   time.time() - start_time)
     # if step % flags_obj.display_interval == 0:
     #   print()
-  plot_history(history)
+  # plot_history(history)
+  create_gif()
+  
 
 
 def _compute_original_image_feature_representation(model):

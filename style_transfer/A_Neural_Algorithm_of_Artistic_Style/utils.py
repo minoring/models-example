@@ -9,6 +9,9 @@ from absl import flags
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np 
+import imageio
+import glob
+
 from PIL import Image
 
 
@@ -56,6 +59,23 @@ def plot_history(history):
   plt.legend()
   # plt.ylim([0.5, 1])
   plt.show()
+
+
+def create_gif():
+  anim_file = 'style.gif'
+
+  with imageio.get_writer(anim_file, mode='I') as writer:
+    filenames = glob.glob('image*.jpg')
+    filenames = sorted(filenames)
+    last = -1
+    for i, filename in enumerate(filenames):
+      frame = 2*(i**0.5)
+      if round(frame) > round(last):
+        last = frame
+        image = imageio.imread(filename)
+        writer.append_data(image)
+    image = imageio.imread(filename)
+    writer.append_data(image)
 
 
 def load_model():
