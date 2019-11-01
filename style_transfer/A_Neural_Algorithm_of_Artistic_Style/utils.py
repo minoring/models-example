@@ -28,21 +28,21 @@ def imshow(img, title=None):
     img: numpy array of image of (batch_size, width or height, width or height)
     title: String of title of image.
   """
-  import IPython.display as display
-  mpl.rcParams['figure.figsize'] = (12,12)
-  mpl.rcParams['axes.grid'] = False
-  display.clear_output(wait=True)
-  display.display(Image.fromarray(img))
-
-  # fig = plt.figure()
-  # print('img shape:', img.shape)
-  # # Normalize for display.
-  # img = img.astype('uint8')
-  # if title is not None:
-  #   plt.title(title)
-  # plt.imshow(img)
-  # fig.canvas.draw_idle()
-  # plt.pause(.001)
+  # import IPython.display as display
+  # mpl.rcParams['figure.figsize'] = (12,12)
+  # mpl.rcParams['axes.grid'] = False
+  # display.clear_output(wait=True)
+  # display.display(Image.fromarray(img))
+  plt.clf()
+  fig = plt.figure()
+  print('img shape:', img.shape)
+  # Normalize for display.
+  img = img.astype('uint8')
+  if title is not None:
+    plt.title(title)
+  plt.imshow(img)
+  fig.canvas.draw_idle()
+  plt.pause(.001)
 
 
 def load_model():
