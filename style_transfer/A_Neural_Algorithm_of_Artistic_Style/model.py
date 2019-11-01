@@ -16,7 +16,7 @@ STYLE_LAYERS = [
 
 NUM_CONTENT_LAYERS = len(CONTENT_LAYERS)
 NUM_STYLE_LAYERS = len(STYLE_LAYERS)
-CONTENT_WEIGHT = 1e4 # TODO(): Flag로.
+CONTENT_WEIGHT = 1e4  # TODO(): Flag로.
 STYLE_WEIGHT = 1e-2
 WEIGHT_PER_STYLE_LAYER = 1.0 / float(NUM_STYLE_LAYERS)
 WEIGHT_PER_CONTENT_LAYER = 1.0 / float(NUM_CONTENT_LAYERS)
@@ -26,14 +26,14 @@ NORM_MEANS = np.array([103.939, 116.779, 123.68])  # VGG19 normalization mean.
 def neural_style():
   """Create out model with access to intermediate layers.
 
-    This function will load the VGG19 model and access the intermediate layers.
-    These layers will then be used to create a new model that will take input
-    image and return the outputs from these intermediate layers from the VGG model.
+  This function will load the VGG19 model and access the intermediate layers.
+  These layers will then be used to create a new model that will take input
+  image and return the outputs from these intermediate layers from the VGG model.
 
-    Returns:
-      A keras model that take image inputs and outputs the style and
-      content intermediate layers.
-    """
+  Returns:
+    A keras model that take image inputs and outputs the style and
+    content intermediate layers.
+  """
   # Load our model. We load pretrained VGG, trained on imagenet data
   vgg = tf.keras.applications.vgg19.VGG19(include_top=False, weights='imagenet')
   vgg.trainable = False
@@ -56,19 +56,17 @@ def compute_losses(model, gen_image, org_style_reprs, org_content_reprs):
       style layers of interest.
     org_content_reprs: Precomputed output from defined content layers 
         of interest.
-    
-    Returns:
-      Dictionary of {'total_loss', 'style_loss', 'content_loss'}
-    """
+  
+  Returns:
+    Dictionary of {'total_loss', 'style_loss', 'content_loss'}
+  """
   # Feed our generating image through our model. This will give us the content
   # and style representations at our desired layers. Since we're using
   # eager execution, our model is callable just like any other function
   model_outputs = model(gen_image)
 
   gen_style_reprs = model_outputs[:NUM_STYLE_LAYERS]
-  gen_content_reprs = model_outputs[
-      NUM_STYLE_LAYERS:]  # TODO(minoring): 개선 법 없을까
-  # Style이 먼저나오고 content가 먼저나오는데 이 순서가 중요함. 헷갈릴것 같은데
+  gen_content_reprs = model_outputs[NUM_STYLE_LAYERS:]
 
   style_loss = 0
   content_loss = 0
@@ -96,31 +94,31 @@ def compute_content_loss(org_content_repr, gen_content_repr):
      intermediate content representation of original image and 
      image that is generated.
 
-    Args:
-      org_content_repr: Output of intermediate feature activation when 
-        the input was original content image.
-      gen_content_repr: Output of intermediate feature activation when 
-        the input was image that is generated.
+  Args:
+    org_content_repr: Output of intermediate feature activation when 
+      the input was original content image.
+    gen_content_repr: Output of intermediate feature activation when 
+      the input was image that is generated.
 
-    Returns:
-      Loss between feature representation of original image and generated image.
-    """
+  Returns:
+    Loss between feature representation of original image and generated image.
+  """
   return tf.reduce_sum(tf.square(org_content_repr - gen_content_repr))
 
 
 def compute_style_loss(org_style_repr, gen_style_repr):
   """Compute style loss between style representation of original image and
-    generated image
+     generated image
 
-    Args:
-      org_style_repr: Tensor shape of (h, w, c). 
-        Style representation of original image.
-      gen_style_repr: Tensor shape of (h, w, c). 
-        Style representation of generated image.
-    
-    Returns:
-      Style loss.
-    """
+  Args:
+    org_style_repr: Tensor shape of (h, w, c). 
+      Style representation of original image.
+    gen_style_repr: Tensor shape of (h, w, c). 
+      Style representation of generated image.
+  
+  Returns:
+    Style loss.
+  """
 
   h, w, c = org_style_repr.get_shape().as_list()
   gram_original = _gram_matrix(org_style_repr)
@@ -132,12 +130,13 @@ def compute_style_loss(org_style_repr, gen_style_repr):
 
 def _gram_matrix(input_tensor):
   """Calculate gram matrix which is (channel, channel) shape.
-    Args:
-      input_tensor: tensor that is calculated.
+  
+  Args:
+    input_tensor: tensor that is calculated.
 
-    Returns:
-      gram matrix of input tensor.
-    """
+  Returns:
+    gram matrix of input tensor.
+  """
   # Now we have channels first image
   channels = int(input_tensor.shape[-1])
   # Convert into channel last tesnro

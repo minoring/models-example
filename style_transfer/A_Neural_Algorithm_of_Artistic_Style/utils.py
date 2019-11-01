@@ -8,15 +8,15 @@ from absl import flags
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import numpy as np 
+import numpy as np
 import imageio
 import glob
 
 from PIL import Image
 
 
-def log_training_info(plot_img, losses, step, elapsed_time):
-  imshow(plot_img, title='Generated image')
+def log_training_info(fig, plot_img, losses, step, elapsed_time):
+  imshow(fig, plot_img, title='Generated image')
   print('Steps: {}'.format(step))
   print('total loss: {:.4e}, '.format(losses['total_loss']),
         'style loss: {:.4e}, '.format(losses['style_loss']),
@@ -24,27 +24,21 @@ def log_training_info(plot_img, losses, step, elapsed_time):
         'time: {:.4f}s'.format(elapsed_time))
 
 
-def imshow(img, title=None):
+def imshow(fig, img, title=None):
   """Show image.
 
   Args:
     img: numpy array of image of (batch_size, width or height, width or height)
     title: String of title of image.
   """
-  # import IPython.display as display
-  # mpl.rcParams['figure.figsize'] = (12,12)
-  # mpl.rcParams['axes.grid'] = False
-  # display.clear_output(wait=True)
-  # display.display(Image.fromarray(img))
   plt.clf()
-  fig = plt.figure()
   print('img shape:', img.shape)
   # Normalize for display.
   img = img.astype('uint8')
   if title is not None:
     plt.title(title)
   plt.imshow(img)
-  plt.pause(.001) 
+  plt.pause(.001)
   fig.canvas.draw_idle()
 
 
@@ -62,6 +56,7 @@ def plot_history(history):
 
 
 def create_gif():
+  """Create gif using saved images"""
   anim_file = 'style.gif'
 
   with imageio.get_writer(anim_file, mode='I') as writer:
@@ -69,7 +64,7 @@ def create_gif():
     filenames = sorted(filenames)
     last = -1
     for i, filename in enumerate(filenames):
-      frame = 2*(i**0.5)
+      frame = 2 * (i**0.5)
       if round(frame) > round(last):
         last = frame
         image = imageio.imread(filename)

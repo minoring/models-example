@@ -61,6 +61,7 @@ def run(flags_obj):
   best_loss, best_img = float('inf'), None
   start_time = time.time()
   history = dict(total_losses=[], style_losses=[], content_losses=[], images=[])
+  fig = plt.figure()
 
   for step in range(flags_obj.num_training_steps):
     with tf.GradientTape() as tape:
@@ -92,13 +93,9 @@ def run(flags_obj):
       plt.imshow(plot_img)
       plt.axis('off')
       plt.savefig('image_at_step_{:04d}.jpg'.format(step))
-      # log_training_info(plot_img, losses, step,
-      #                   time.time() - start_time)
-    # if step % flags_obj.display_interval == 0:
-    #   print()
-  # plot_history(history)
+      log_training_info(fig, plot_img, losses, step, time.time() - start_time)
+  plot_history(history)
   create_gif()
-  
 
 
 def _compute_original_image_feature_representation(model):
