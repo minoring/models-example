@@ -21,6 +21,7 @@ from model import neural_style
 from model import compute_losses
 from flags import define_flags
 from utils import log_training_info
+from utils import plot_history
 
 import tensorflow as tf
 import os
@@ -58,7 +59,7 @@ def run(flags_obj):
 
   best_loss, best_img = float('inf'), None
   start_time = time.time()
-  history = dict(losses=[], images=[])
+  history = dict(total_losses=[], style_losses=[], content_losses=[], images=[])
 
   for step in range(flags_obj.num_training_steps):
     with tf.GradientTape() as tape:
@@ -66,7 +67,9 @@ def run(flags_obj):
       losses = compute_losses(model, gen_img, org_style_reprs,
                               org_content_reprs)
     total_loss = losses['total_loss']
-    history['losses'].append(losses)
+    history['total_losses'].append(total_loss)
+    history['style_losses'].append(losses['style_loss'])
+    history['content_losses'].append(losses['content_loss'])
 
     grads = tape.gradient(total_loss, gen_img)
 
@@ -78,7 +81,7 @@ def run(flags_obj):
 
     plot_img = gen_img.numpy()
     plot_img = deprocess_img(plot_img)
-    history['images'].append(plot_img)
+    # history['images'].append(plot_img)
 
     if total_loss < best_loss:
       best_loss = total_loss
@@ -87,6 +90,9 @@ def run(flags_obj):
     if step % flags_obj.display_interval == 0:
       log_training_info(plot_img, losses, step,
                         time.time() - start_time)
+    # if step % flags_obj.display_interval == 0:
+    #   print()
+  plot_history(history)
 
 
 def _compute_original_image_feature_representation(model):

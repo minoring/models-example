@@ -41,8 +41,21 @@ def imshow(img, title=None):
   if title is not None:
     plt.title(title)
   plt.imshow(img)
+  plt.pause(.001) 
   fig.canvas.draw_idle()
-  plt.pause(.001)
+
+
+def plot_history(history):
+  """Plot history of style, content, and total loss"""
+  plt.figure()
+  plt.plot(history['total_losses'], label='total loss')
+  plt.plot(history['style_losses'], label='style loss')
+  plt.plot(history['content_losses'], label='content loss')
+  plt.xlabel('Training step')
+  plt.ylabel('loss')
+  plt.legend()
+  # plt.ylim([0.5, 1])
+  plt.show()
 
 
 def load_model():
