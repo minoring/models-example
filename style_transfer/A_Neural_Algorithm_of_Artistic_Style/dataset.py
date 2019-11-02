@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
+from absl import flags
 from tensorflow.keras.preprocessing import image
 from utils import imshow
 from PIL import Image
@@ -82,15 +83,11 @@ def _load_img(path_to_img):
 
 if __name__ == '__main__':
   """Show Example content image and style image"""
-  RESOURCES_PATH = os.path.join(os.path.dirname(__file__), 'resources')
-  CONTENT_PATH = os.path.join(RESOURCES_PATH,
-                              'Green_Sea_Turtle_grazing_seagrass.jpg')
-  STYLE_PATH = os.path.join(RESOURCES_PATH, 'The_Great_Wave_off_Kanagawa.jpg')
 
   plt.figure(figsize=(10, 10))
 
-  content = _load_img(CONTENT_PATH)
-  style = _load_img(STYLE_PATH)
+  content = _load_img(flags.FLAGS.content)
+  style = _load_img(flags.FLAGS.style)
 
   plt.subplot(1, 2, 1)
   imshow(content, 'Content Image')

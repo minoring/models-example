@@ -32,11 +32,6 @@ import tensorflow as tf
 import os
 import time
 import matplotlib.pyplot as plt
-# Define global constants
-RESOURCES_PATH = os.path.join(os.path.dirname(__file__), 'resources')
-CONTENT_PATH = os.path.join(RESOURCES_PATH,
-                            'Green_Sea_Turtle_grazing_seagrass.jpg')
-STYLE_PATH = os.path.join(RESOURCES_PATH, 'The_Great_Wave_off_Kanagawa.jpg')
 
 
 def run(flags_obj):
@@ -56,7 +51,7 @@ def run(flags_obj):
     layer.trainable = False
 
   # Get image we are generating. Content image for now.
-  gen_img = _load_img(CONTENT_PATH)
+  gen_img = _load_img(flags_obj.content)
   gen_img = tf.Variable(gen_img)
 
   opt = tf.optimizers.Adam(learning_rate=flags_obj.learning_rate,
@@ -109,16 +104,14 @@ def _compute_original_image_feature_representation(model):
 
   Args:
     model: The model that we are using.
-    content_path: The path to the content image.
-    style_path: The path to the style image.
   
   Returns:
     Tuple of style and content representation of original image.
   """
   # Load our images in
-  style_img = _load_img(STYLE_PATH)
-  content_img = _load_img(CONTENT_PATH)
-  style_img = tf.keras.applications.vgg19.preprocess_input(style_img * 255) 
+  style_img = _load_img(flags.FLAGS.style)
+  content_img = _load_img(flags.FLAGS.content)
+  style_img = tf.keras.applications.vgg19.preprocess_input(style_img * 255)
   content_img = tf.keras.applications.vgg19.preprocess_input(content_img * 255)
 
   style_outputs = model(style_img)
