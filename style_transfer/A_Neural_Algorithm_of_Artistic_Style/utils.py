@@ -49,7 +49,6 @@ def imshow(img, title=None):
   """
   if len(img.shape) > 3:
     img = tf.squeeze(img, axis=0)
-  print('img shape:', img.shape)
   # Normalize for display.
   if title is not None:
     plt.title(title)
