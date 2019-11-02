@@ -58,7 +58,6 @@ def run(flags_obj):
   # Get image we are generating. Content image for now.
   gen_img = _load_img(CONTENT_PATH)
   gen_img = tf.Variable(gen_img)
-  print(gen_img)
 
   opt = tf.optimizers.Adam(learning_rate=flags_obj.learning_rate,
                            beta_1=0.99,
