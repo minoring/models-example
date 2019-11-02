@@ -22,7 +22,8 @@ def load_and_process_img(path_to_img):
     Numpy array image of VGG19 preprocessed 
   """
   img = _load_img(path_to_img)
-  img = tf.keras.applications.vgg19.preprocess_input(img)
+  img = tf.keras.applications.vgg19.preprocess_input(img * 255)
+  img = tf.image.resize(img, (224, 224))
   return img
 
 
@@ -63,18 +64,19 @@ def _load_img(path_to_img):
     path_to_img: path to image.
   
   Returns:
-    A 3D Numpy array of image.
+    A 3D Tensor of image. Range [0, 1]
   """
-  img = Image.open(path_to_img)
-  long = max(img.size)
-  scale = IMG_MAX_SIZE / long
-  img = img.resize((round(img.size[0] * scale), round(img.size[1] * scale)),
-                   Image.ANTIALIAS)  # A high-quality downsampling filter.
+  img = tf.io.read_file(path_to_img)
+  img = tf.image.decode_image(img, channels=3)
+  img = tf.image.convert_image_dtype(img, tf.float32)
 
-  img = image.img_to_array(img)
+  shape = tf.cast(tf.shape(img)[:-1], tf.float32)
+  long_dim = max(shape)
+  scale = IMG_MAX_SIZE / long_dim
 
-  # We need to broadcast the image array such that it has a batch dimension.
-  img = np.expand_dims(img, axis=0)
+  new_shape = tf.cast(shape * scale, tf.int32)
+  img = tf.image.resize(img, new_shape)
+  img = img[tf.newaxis, :]
   return img
 
 
@@ -87,8 +89,8 @@ if __name__ == '__main__':
 
   plt.figure(figsize=(10, 10))
 
-  content = _load_img(CONTENT_PATH).astype('uint8')
-  style = _load_img(STYLE_PATH).astype('uint8')
+  content = _load_img(CONTENT_PATH)
+  style = _load_img(STYLE_PATH)
 
   plt.subplot(1, 2, 1)
   imshow(content, 'Content Image')

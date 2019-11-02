@@ -6,6 +6,7 @@ from __future__ import print_function
 from absl import flags
 # from dataset import deprocess_img
 
+import tensorflow as tf
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
@@ -15,8 +16,23 @@ import glob
 from PIL import Image
 
 
-def log_training_info(fig, plot_img, losses, step, elapsed_time):
-  imshow(fig, plot_img, title='Generated image')
+def tensor_to_image(tensor):
+  """Convert tensor into PIL.Image
+
+  Args:
+    tensor: Tensor.
+  Returns:
+    PIL.Image object of tensor.
+  """
+  tensor = np.array(tensor, dtype=np.uint8)
+  if np.ndim(tensor) > 3:
+    assert tensor.shape[0] == 1
+    tensor = tensor[0]
+  return Image.fromarray(tensor)
+
+
+def log_training_info(plot_img, losses, step, elapsed_time):
+  imshow(plot_img, title='Generated image')
   print('Steps: {}'.format(step))
   print('total loss: {:.4e}, '.format(losses['total_loss']),
         'style loss: {:.4e}, '.format(losses['style_loss']),
@@ -24,22 +40,20 @@ def log_training_info(fig, plot_img, losses, step, elapsed_time):
         'time: {:.4f}s'.format(elapsed_time))
 
 
-def imshow(fig, img, title=None):
+def imshow(img, title=None):
   """Show image.
 
   Args:
-    img: numpy array of image of (batch_size, width or height, width or height)
+    img: Tensor of image of (batch_size, width or height, width or height)
     title: String of title of image.
   """
-  plt.clf()
+  if len(img.shape) > 3:
+    img = tf.squeeze(img, axis=0)
   print('img shape:', img.shape)
   # Normalize for display.
-  img = img.astype('uint8')
   if title is not None:
     plt.title(title)
   plt.imshow(img)
-  plt.pause(.001)
-  fig.canvas.draw_idle()
 
 
 def plot_history(history):
@@ -71,6 +85,14 @@ def create_gif():
         writer.append_data(image)
     image = imageio.imread(filename)
     writer.append_data(image)
+
+
+def clip_0_1(img):
+  return tf.clip_by_value(img, clip_value_min=0.0, clip_value_max=1.0)
+
+
+def clip_0_255(img):
+  return tf.clip_by_value(img, clip_value_min=0.0, clip_value_max=255.0)
 
 
 def load_model():

@@ -23,6 +23,10 @@ from flags import define_flags
 from utils import log_training_info
 from utils import plot_history
 from utils import create_gif
+from utils import imshow
+from utils import clip_0_1
+from utils import clip_0_255
+from dataset import _load_img
 
 import tensorflow as tf
 import os
@@ -52,8 +56,10 @@ def run(flags_obj):
     layer.trainable = False
 
   # Get image we are generating. Content image for now.
-  gen_img = load_and_process_img(CONTENT_PATH)
+  gen_img = _load_img(CONTENT_PATH)
   gen_img = tf.Variable(gen_img)
+  print(gen_img)
+
   opt = tf.optimizers.Adam(learning_rate=flags_obj.learning_rate,
                            beta_1=0.99,
                            epsilon=1e-1)
@@ -61,7 +67,6 @@ def run(flags_obj):
   best_loss, best_img = float('inf'), None
   start_time = time.time()
   history = dict(total_losses=[], style_losses=[], content_losses=[], images=[])
-  fig = plt.figure()
 
   for step in range(flags_obj.num_training_steps):
     with tf.GradientTape() as tape:
@@ -76,24 +81,21 @@ def run(flags_obj):
     grads = tape.gradient(total_loss, gen_img)
 
     opt.apply_gradients([(grads, gen_img)])
+    gen_img.assign(clip_0_1(gen_img))
 
-    # Clip by [-NORM_MEANS, 244 - NORM_MEANS] range.
-    cliped_img = tf.clip_by_value(gen_img, -NORM_MEANS, 255 - NORM_MEANS)
-    gen_img.assign(cliped_img)
-
-    plot_img = gen_img.numpy()
-    plot_img = deprocess_img(plot_img)
+    # plot_img = gen_img.numpy()
+    # plot_img = deprocess_img(plot_img)
     # history['images'].append(plot_img)
 
     if total_loss < best_loss:
       best_loss = total_loss
-      best_img = plot_img
+      best_img = gen_img
 
     if step % flags_obj.display_interval == 0:
-      plt.imshow(plot_img)
+      plt.imshow(gen_img.numpy()[0])
       plt.axis('off')
       plt.savefig('image_at_step_{:04d}.jpg'.format(step))
-      log_training_info(fig, plot_img, losses, step, time.time() - start_time)
+      log_training_info(gen_img, losses, step, time.time() - start_time)
   plot_history(history)
   create_gif()
 
@@ -115,18 +117,20 @@ def _compute_original_image_feature_representation(model):
     Tuple of style and content representation of original image.
   """
   # Load our images in
-  content_img = load_and_process_img(CONTENT_PATH)
-  style_img = load_and_process_img(STYLE_PATH)
+  style_img = _load_img(STYLE_PATH)
+  content_img = _load_img(CONTENT_PATH)
+  style_img = tf.keras.applications.vgg19.preprocess_input(style_img * 255) 
+  content_img = tf.keras.applications.vgg19.preprocess_input(content_img * 255)
 
   style_outputs = model(style_img)
   content_outputs = model(content_img)
 
   # Get the style and content feature representations from our model
   style_reprs = [
-      style_layer[0] for style_layer in style_outputs[:NUM_STYLE_LAYERS]
+      style_layer for style_layer in style_outputs[:NUM_STYLE_LAYERS]
   ]
   content_reprs = [
-      content_layer[0] for content_layer in content_outputs[NUM_STYLE_LAYERS:]
+      content_layer for content_layer in content_outputs[NUM_STYLE_LAYERS:]
   ]
 
   return style_reprs, content_reprs

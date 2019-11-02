@@ -14,10 +14,10 @@ STYLE_LAYERS = [
     'block5_conv1'
 ]
 
-NUM_CONTENT_LAYERS = len(CONTENT_LAYERS)
 NUM_STYLE_LAYERS = len(STYLE_LAYERS)
-CONTENT_WEIGHT = 1e4  # TODO(): Flag로.
+NUM_CONTENT_LAYERS = len(CONTENT_LAYERS)
 STYLE_WEIGHT = 1e-2
+CONTENT_WEIGHT = 1e4  # TODO(): Flag로.
 WEIGHT_PER_STYLE_LAYER = 1.0 / float(NUM_STYLE_LAYERS)
 WEIGHT_PER_CONTENT_LAYER = 1.0 / float(NUM_CONTENT_LAYERS)
 NORM_MEANS = np.array([103.939, 116.779, 123.68])  # VGG19 normalization mean.
@@ -35,14 +35,14 @@ def neural_style():
     content intermediate layers.
   """
   # Load our model. We load pretrained VGG, trained on imagenet data
-  vgg = tf.keras.applications.vgg19.VGG19(include_top=False, weights='imagenet')
+  vgg = tf.keras.applications.VGG19(include_top=False, weights='imagenet')
   vgg.trainable = False
   # Get output layers corresponding to style and content layers
   style_outputs = [vgg.get_layer(name).output for name in STYLE_LAYERS]
   content_outputs = [vgg.get_layer(name).output for name in CONTENT_LAYERS]
   model_outputs = style_outputs + content_outputs
   # Build model
-  return tf.keras.models.Model(vgg.input, model_outputs)
+  return tf.keras.Model([vgg.input], model_outputs)
 
 
 def compute_losses(model, gen_image, org_style_reprs, org_content_reprs):
@@ -63,7 +63,8 @@ def compute_losses(model, gen_image, org_style_reprs, org_content_reprs):
   # Feed our generating image through our model. This will give us the content
   # and style representations at our desired layers. Since we're using
   # eager execution, our model is callable just like any other function
-  model_outputs = model(gen_image)
+  model_outputs = model(
+      tf.keras.applications.vgg19.preprocess_input(gen_image * 255))
 
   gen_style_reprs = model_outputs[:NUM_STYLE_LAYERS]
   gen_content_reprs = model_outputs[NUM_STYLE_LAYERS:]
@@ -74,13 +75,13 @@ def compute_losses(model, gen_image, org_style_reprs, org_content_reprs):
   # Accumulate style losses from all layers
   for org_style_repr, gen_style_repr in zip(org_style_reprs, gen_style_reprs):
     style_loss += WEIGHT_PER_STYLE_LAYER * compute_style_loss(
-        org_style_repr, gen_style_repr[0])
+        org_style_repr, gen_style_repr)
 
   # Accumulate content losses from all layers
   for org_content_repr, gen_content_repr in zip(org_content_reprs,
                                                 gen_content_reprs):
     content_loss += WEIGHT_PER_CONTENT_LAYER * compute_content_loss(
-        org_content_repr, gen_content_repr[0])
+        org_content_repr, gen_content_repr)
 
   # Get total loss
   total_loss = STYLE_WEIGHT * style_loss + CONTENT_WEIGHT * content_loss
@@ -103,7 +104,7 @@ def compute_content_loss(org_content_repr, gen_content_repr):
   Returns:
     Loss between feature representation of original image and generated image.
   """
-  return tf.reduce_sum(tf.square(org_content_repr - gen_content_repr))
+  return tf.reduce_mean(tf.square(org_content_repr - gen_content_repr))
 
 
 def compute_style_loss(org_style_repr, gen_style_repr):
@@ -119,13 +120,11 @@ def compute_style_loss(org_style_repr, gen_style_repr):
   Returns:
     Style loss.
   """
-
-  h, w, c = org_style_repr.get_shape().as_list()
   gram_original = _gram_matrix(org_style_repr)
   gram_generated = _gram_matrix(gen_style_repr)
 
-  return (tf.reduce_sum(
-      tf.square(gram_original - gram_generated) / (4. * (c**2) * (w * h)**2)))
+  # Why mean?
+  return tf.reduce_mean(tf.square(gram_original - gram_generated))
 
 
 def _gram_matrix(input_tensor):
@@ -135,12 +134,9 @@ def _gram_matrix(input_tensor):
     input_tensor: tensor that is calculated.
 
   Returns:
-    gram matrix of input tensor.
+    Gram matrix of input tensor.
   """
-  # Now we have channels first image
-  channels = int(input_tensor.shape[-1])
-  # Convert into channel last tesnro
-  a = tf.reshape(input_tensor, (-1, channels))
-  filter_dims = tf.shape(a)[0]
-  gram = tf.matmul(a, a, transpose_a=True)
-  return gram / tf.cast(filter_dims, tf.float32)
+  result = tf.linalg.einsum('bijc,bijd->bcd', input_tensor, input_tensor)
+  input_shape = tf.shape(input_tensor)
+  num_locations = tf.cast(input_shape[1] * input_shape[2], tf.float32)
+  return result / (num_locations)
