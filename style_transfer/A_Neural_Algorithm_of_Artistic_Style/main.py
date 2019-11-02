@@ -137,9 +137,9 @@ def _compute_original_image_feature_representation(model):
 
 def main(_):
   """Main function to run neural style"""
-  define_flags()
   run(flags.FLAGS)
 
 
 if __name__ == '__main__':
+  define_flags()
   app.run(main)
